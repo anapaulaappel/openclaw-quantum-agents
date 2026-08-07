@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-skills
+  namespace: openclaw
+  labels:
+    app: openclaw
+data:
+  # ── skill: qiskit-api ────────────────────────────────────────────────────
+  # Encapsula chamadas HTTP à API do llama-qiskit-agents.
+  # Usada por quantum_encoding, qiskit_expert e qiskit_mentor.
+  qiskit-api-SKILL.md: |
+    ---
+    name: qiskit-api
+    description: >
+      Calls the llama-qiskit-agents REST API to analyze data profiles, recommend
+      quantum encodings, generate Qiskit code, and simulate circuits.
+      Use this skill whenever the user provides data or asks about quantum encoding.
+    user-invocable: false
+    ---
+
+    # Skill: qiskit-api
+
+    Encapsula todas as chamadas HTTP à API do `llama-qiskit-agents`.
+    Use esta skill sempre que o usuário fornecer dados ou pedir recomendação de encoding.
+
+    ## Base URL
+
+    http://llama-qiskit-agents.openclaw.svc.cluster.local:8080
+
+    ---
+
+    ## Endpoint principal
+
+    ### `POST /v1/recommend/explain`
+
+    Recomendação completa: detecta idioma, retorna justificativa narrativa + código Qiskit.
+
+    Campos aceitos (todos opcionais — use os que o usuário forneceu):
+    - `description`: texto livre sobre o dado ou problema
+    - `data`: lista de floats (amostra numérica)
+    - `task`: classification | clustering | encoding | kernel | variational
+    - `algorithm`: QSVM, VQC, QNN, QAOA, etc.
+    - `problem_description`: contexto adicional em texto livre
+
+    Campos da resposta relevantes:
+    - `recommended_encoding`: encoding escolhido
+    - `explanation`: justificativa em linguagem natural (já no idioma do usuário)
+    - `qiskit_code`: código Python completo e copiável
+    - `circuit_depth`: profundidade do circuito transpilado
+    - `circuit_qubits`: número de qubits usados
+    - `lang`: idioma detectado (pt ou en)
+
+    Apresentação: mostre `explanation` diretamente, depois `qiskit_code` em bloco de código.
+
+    ## Endpoints auxiliares
+
+    - `POST /v1/compare` — ranking dos 5 encodings: `{"data": [...], "task": "...", "shots": 1024}`
+    - `POST /v1/circuit` — diagrama ASCII: `{"encoding_name": "angle", "data": [...]}`
+    - `POST /v1/simulate` — histograma: `{"encoding_name": "...", "data": [...], "shots": 512}`
+    - `GET /v1/tradeoffs` — trade-offs de todos os encodings
+
+    ## Regras de uso
+
+    1. Sempre chame a API quando houver dados ou descrição de dataset.
+    2. Passe todos os campos disponíveis na pergunta do usuário.
+    3. Não reformule a `explanation` — ela já está no idioma certo com métricas concretas.
+    4. Se a API retornar erro, tente `/v1/recommend` como fallback.
+
+  # ── skill: circuit-review ────────────────────────────────────────────────
+  circuit-review-SKILL.md: |
+    ---
+    name: circuit-review
+    description: >
+      Reviews an existing Qiskit circuit or encoding choice before recommending
+      alternatives. Checks depth, gate count, qubit connectivity, and NISQ
+      compatibility. Invoke when the user shares existing code or asks "is this good?".
+    user-invocable: true
+    ---
+
+    # Skill: circuit-review
+
+    Revisão técnica de circuitos ou escolhas de encoding já existentes.
+    Invoque quando o usuário compartilhar código Qiskit ou perguntar se o encoding atual é adequado.
+
+    ## Protocolo de revisão
+
+    ### Passo 1 — Extrair métricas do circuito atual
+    Identifique: número de qubits, profundidade estimada, gates usados,
+    tipo de encoding inferido.
+
+    ### Passo 2 — Benchmark via API
+    Extraia os dados do código e chame:
+    `POST http://llama-qiskit-agents.openclaw.svc.cluster.local:8080/v1/compare`
+    com `{"data": [<dados extraídos>], "shots": 256}`
+
+    ### Passo 3 — Revisão em 4 pontos
+    1. O que o circuito faz (sem repetir o código)
+    2. Métricas: tabela atual vs. melhor alternativa
+    3. Compatibilidade NISQ: ≤5 (excelente) | 6-15 (viável) | 16-30 (arriscado) | >30 (simulação)
+    4. Recomendação: Manter | Otimizar | Trocar — com motivo técnico
+
+    ## Regras
+    - Critique apenas por impacto em profundidade, qubits ou fidelidade — não por estilo.
+    - Se não houver dados suficientes para chamar a API, pergunte antes de especular.
+    - Sempre termine com uma ação clara.

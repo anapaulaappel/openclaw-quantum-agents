@@ -1,0 +1,16 @@
+# Permissão para o oauth-proxy verificar tokens do OpenShift OAuth.
+# Esta role é necessária para o proxy validar as credenciais dos usuários.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: openclaw-oauth-proxy
+  labels:
+    app: openclaw
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: openclaw-sa
+    namespace: openclaw

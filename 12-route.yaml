@@ -1,0 +1,28 @@
+# Route do OpenShift — torna o OpenClaw acessível via HTTPS externamente.
+#
+# O OpenShift gera automaticamente um certificado TLS usando o wildcard
+# do cluster (*.apps.<SEU_DOMINIO>).
+#
+# Após aplicar, acesse: https://openclaw-openclaw.apps.<SEU_DOMINIO>
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openclaw
+  namespace: openclaw
+  labels:
+    app: openclaw
+spec:
+  # O OpenShift preenche o host automaticamente se você não especificar.
+  # Se quiser um domínio customizado, descomente e ajuste a linha abaixo:
+  # host: openclaw.apps.<SEU_DOMINIO_OPENSHIFT>
+  to:
+    kind: Service
+    name: openclaw
+  port:
+    targetPort: public
+  tls:
+    # reencrypt: o tráfego é criptografado entre o router e o oauth-proxy
+    termination: reencrypt
+    # Redireciona HTTP para HTTPS automaticamente
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

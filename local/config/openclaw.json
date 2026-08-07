@@ -1,0 +1,129 @@
+{
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "local-dev-token-change-me"
+    },
+    "controlUi": {
+      "allowedOrigins": ["http://localhost:18789"],
+      "dangerouslyDisableDeviceAuth": true
+    }
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "~/.openclaw/workspace",
+      "model": {
+        "primary": "ollama/qwen2.5-coder:14b"
+      }
+    },
+    "list": [
+      {
+        "id": "meu_agente",
+        "name": "Meu Agente",
+        "workspace": "~/.openclaw/workspace-meu_agente",
+        "model": {
+          "primary": "ollama/qwen2.5-coder:14b"
+        },
+        "subagents": {
+          "allowAgents": ["*"]
+        },
+        "default": true
+      },
+      {
+        "id": "quantum_news",
+        "name": "Quantum News Agent",
+        "workspace": "~/.openclaw/workspace-quantum_news",
+        "model": {
+          "primary": "ollama/qwen2.5-coder:14b"
+        },
+        "subagents": {
+          "allowAgents": ["*"]
+        }
+      },
+      {
+        "id": "quantum_encoding",
+        "name": "QiskitAgent",
+        "workspace": "~/.openclaw/workspace-quantum_encoding",
+        "model": {
+          "primary": "ollama/qwen2.5-coder:14b"
+        },
+        "subagents": {
+          "allowAgents": ["*"]
+        }
+      },
+      {
+        "id": "qiskit_expert",
+        "name": "Circuit",
+        "workspace": "~/.openclaw/workspace-qiskit_expert",
+        "model": {
+          "primary": "ollama/qwen2.5-coder:14b"
+        },
+        "subagents": {
+          "allowAgents": ["*"]
+        }
+      },
+      {
+        "id": "qiskit_mentor",
+        "name": "Quanta",
+        "workspace": "~/.openclaw/workspace-qiskit_mentor",
+        "model": {
+          "primary": "ollama/qwen2.5-coder:14b"
+        },
+        "subagents": {
+          "allowAgents": ["*"]
+        }
+      }
+    ]
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://ollama:11434/v1",
+        "apiKey": "dummy",
+        "api": "openai-completions",
+        "request": {
+          "allowPrivateNetwork": true
+        },
+        "models": [
+          {
+            "id": "qwen2.5-coder:14b",
+            "name": "Qwen2.5-Coder 14B (Ollama local)",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 32000,
+            "maxTokens": 4096
+          },
+          {
+            "id": "mistral-small3.2:24b",
+            "name": "Mistral Small 3.2 24B (Ollama local)",
+            "reasoning": true,
+            "input": ["text", "image"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 128000,
+            "maxTokens": 4096
+          },
+          {
+            "id": "qwen2.5-coder:7b",
+            "name": "Qwen2.5-Coder 7B (Ollama local, leve)",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 32000,
+            "maxTokens": 2048
+          }
+        ]
+      }
+    }
+  },
+  "skills": {
+    "load": {
+      "extraDirs": ["~/.openclaw/skills"],
+      "watch": true,
+      "watchDebounceMs": 1000
+    }
+  },
+  "cron": { "enabled": true }
+}

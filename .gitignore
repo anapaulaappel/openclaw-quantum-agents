@@ -1,0 +1,11 @@
+# Ambiente local — nunca commitar
+local/.env
+
+# OS
+.DS_Store
+**/.DS_Store
+
+# Backups de editor
+*.swp
+*.swo
+*~

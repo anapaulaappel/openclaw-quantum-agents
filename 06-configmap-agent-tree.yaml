@@ -1,0 +1,10 @@
+# ConfigMap para diretórios extras de workspace (workspace-* adicionais).
+# Pode ficar vazio se não precisar de workspaces extras.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-agent-tree
+  namespace: openclaw
+  labels:
+    app: openclaw
+data: {}

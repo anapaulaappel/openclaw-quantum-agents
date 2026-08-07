@@ -1,0 +1,28 @@
+# Service interno (ClusterIP) que expõe o gateway do OpenClaw dentro do cluster.
+# O oauth-proxy faz proxy reverso para este serviço.
+apiVersion: v1
+kind: Service
+metadata:
+  name: openclaw
+  namespace: openclaw
+  labels:
+    app: openclaw
+  annotations:
+    # Esta annotation diz ao OpenShift para gerar e gerenciar o certificado TLS
+    # automaticamente. O certificado é armazenado no Secret "openclaw-tls".
+    service.beta.openshift.io/serving-cert-secret-name: openclaw-tls
+spec:
+  type: ClusterIP
+  selector:
+    app: openclaw
+  ports:
+    # Porta do oauth-proxy (HTTPS público, acessível via Route)
+    - name: public
+      port: 8443
+      targetPort: 8443
+      protocol: TCP
+    # Porta interna do gateway (não exposta externamente)
+    - name: gateway
+      port: 18789
+      targetPort: 18789
+      protocol: TCP

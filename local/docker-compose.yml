@@ -1,0 +1,177 @@
+name: quantum-local
+
+# Stack local: OpenClaw + Ollama + llama-qiskit-agents
+#
+# Modelos disponíveis (escolha um em OPENCLAW_MODEL abaixo):
+#   qwen2.5-coder:14b    → 9 GB, 16 GB RAM, especializado em código/Qiskit (recomendado)
+#   mistral-small3.2:24b → 15 GB, 24 GB RAM, 128K context, melhor raciocínio geral
+#   qwen2.5-coder:7b     → 4.7 GB, 8 GB RAM, opção para máquinas com menos memória
+#
+# Uso:
+#   cp .env.example .env          # edite o .env com o modelo desejado
+#   docker compose up -d          # sobe tudo
+#   docker compose exec ollama ollama pull qwen2.5-coder:14b  # baixa o modelo
+
+services:
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Ollama — serve os modelos LLM localmente via API OpenAI-compatível
+  # ────────────────────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: quantum-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h       # mantém o modelo em memória por 24h
+      - OLLAMA_NUM_PARALLEL=2       # permite 2 requisições simultâneas
+    # Para GPU NVIDIA: adicione as 3 linhas abaixo e comente o healthcheck se necessário
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Model Puller — baixa o modelo na primeira inicialização e sai
+  # ────────────────────────────────────────────────────────────────────────
+  model-puller:
+    image: ollama/ollama:latest
+    container_name: quantum-model-puller
+    restart: "no"                   # roda uma vez e para
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - MODEL=${OPENCLAW_MODEL:-qwen2.5-coder:14b}
+    entrypoint: ["sh", "-c", "ollama pull $$MODEL && echo '✓ Modelo pronto: '$$MODEL"]
+
+  # ────────────────────────────────────────────────────────────────────────
+  # llama-qiskit-agents — API REST de encoding quântico
+  # ────────────────────────────────────────────────────────────────────────
+  qiskit-api:
+    build:
+      context: ../../llama-qiskit-agents   # caminho relativo ao Dockerfile
+      dockerfile: Dockerfile
+    image: llama-qiskit-agents:local
+    container_name: quantum-qiskit-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - CORS_ORIGINS=http://localhost:18789,http://openclaw:18789
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ────────────────────────────────────────────────────────────────────────
+  # OpenClaw — gateway de IA pessoal
+  # ────────────────────────────────────────────────────────────────────────
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: quantum-openclaw
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+      qiskit-api:
+        condition: service_healthy
+    ports:
+      - "18789:18789"
+    volumes:
+      - openclaw-data:/home/node/.openclaw
+      - ./config:/config:ro           # configs montadas read-only
+    environment:
+      - HOME=/home/node
+      - NODE_ENV=production
+      - OPENCLAW_CONFIG_DIR=/home/node/.openclaw
+      - OPENCLAW_STATE_DIR=/home/node/.openclaw
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-local-dev-token-change-me}
+      - OPENAI_API_KEY=dummy          # Ollama não exige auth
+    # Init: copia configs do volume /config para o diretório de dados
+    # Usa o próprio binário do OpenClaw como runner do sh, igual ao OpenShift
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p /home/node/.openclaw/workspace-meu_agente
+        mkdir -p /home/node/.openclaw/workspace-quantum_news
+        mkdir -p /home/node/.openclaw/workspace-quantum_encoding
+        mkdir -p /home/node/.openclaw/workspace-qiskit_expert
+        mkdir -p /home/node/.openclaw/workspace-qiskit_mentor
+        mkdir -p /home/node/.openclaw/cron
+        mkdir -p /home/node/.openclaw/skills
+
+        # openclaw.json: copia só se não existir (preserva edições via UI)
+        if [ ! -f /home/node/.openclaw/openclaw.json ]; then
+          echo "→ Primeira execução: copiando openclaw.json"
+          cp /config/openclaw.json /home/node/.openclaw/openclaw.json
+          cp /config/openclaw.json /home/node/.openclaw/openclaw.json.last-good
+        fi
+
+        # Workspace do meu_agente
+        cp /config/agents/meu_agente/AGENTS.md    /home/node/.openclaw/workspace-meu_agente/  2>/dev/null || true
+        cp /config/agents/meu_agente/SOUL.md      /home/node/.openclaw/workspace-meu_agente/  2>/dev/null || true
+        cp /config/agents/meu_agente/IDENTITY.md  /home/node/.openclaw/workspace-meu_agente/  2>/dev/null || true
+        cp /config/agents/meu_agente/agent.json   /home/node/.openclaw/workspace-meu_agente/  2>/dev/null || true
+
+        # Workspace do quantum_news
+        cp /config/agents/quantum_news/AGENTS.md    /home/node/.openclaw/workspace-quantum_news/  2>/dev/null || true
+        cp /config/agents/quantum_news/SOUL.md      /home/node/.openclaw/workspace-quantum_news/  2>/dev/null || true
+        cp /config/agents/quantum_news/IDENTITY.md  /home/node/.openclaw/workspace-quantum_news/  2>/dev/null || true
+        cp /config/agents/quantum_news/agent.json   /home/node/.openclaw/workspace-quantum_news/  2>/dev/null || true
+
+        # Workspace do quantum_encoding (QiskitAgent)
+        cp /config/agents/quantum_encoding/AGENTS.md    /home/node/.openclaw/workspace-quantum_encoding/  2>/dev/null || true
+        cp /config/agents/quantum_encoding/SOUL.md      /home/node/.openclaw/workspace-quantum_encoding/  2>/dev/null || true
+        cp /config/agents/quantum_encoding/IDENTITY.md  /home/node/.openclaw/workspace-quantum_encoding/  2>/dev/null || true
+        cp /config/agents/quantum_encoding/agent.json   /home/node/.openclaw/workspace-quantum_encoding/  2>/dev/null || true
+
+        # Workspace do qiskit_expert (Circuit)
+        cp /config/agents/qiskit_expert/AGENTS.md    /home/node/.openclaw/workspace-qiskit_expert/  2>/dev/null || true
+        cp /config/agents/qiskit_expert/SOUL.md      /home/node/.openclaw/workspace-qiskit_expert/  2>/dev/null || true
+        cp /config/agents/qiskit_expert/IDENTITY.md  /home/node/.openclaw/workspace-qiskit_expert/  2>/dev/null || true
+        cp /config/agents/qiskit_expert/agent.json   /home/node/.openclaw/workspace-qiskit_expert/  2>/dev/null || true
+
+        # Workspace do qiskit_mentor (Quanta)
+        cp /config/agents/qiskit_mentor/AGENTS.md    /home/node/.openclaw/workspace-qiskit_mentor/  2>/dev/null || true
+        cp /config/agents/qiskit_mentor/SOUL.md      /home/node/.openclaw/workspace-qiskit_mentor/  2>/dev/null || true
+        cp /config/agents/qiskit_mentor/IDENTITY.md  /home/node/.openclaw/workspace-qiskit_mentor/  2>/dev/null || true
+        cp /config/agents/qiskit_mentor/agent.json   /home/node/.openclaw/workspace-qiskit_mentor/  2>/dev/null || true
+
+        # Skills compartilhadas (disponíveis para todos os agentes)
+        mkdir -p /home/node/.openclaw/skills/qiskit-api
+        mkdir -p /home/node/.openclaw/skills/circuit-review
+        cp /config/skills/qiskit-api/SKILL.md    /home/node/.openclaw/skills/qiskit-api/    2>/dev/null || true
+        cp /config/skills/circuit-review/SKILL.md /home/node/.openclaw/skills/circuit-review/ 2>/dev/null || true
+
+        # Cron jobs
+        cp /config/cron/jobs.json /home/node/.openclaw/cron/jobs.json 2>/dev/null || true
+
+        echo "✓ Configuração inicializada"
+        exec node dist/index.js gateway run --bind lan --port 18789 --allow-unconfigured
+
+volumes:
+  ollama-data:
+    name: quantum-ollama-data
+  openclaw-data:
+    name: quantum-openclaw-data

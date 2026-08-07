@@ -1,0 +1,178 @@
+# Configuração principal do OpenClaw usando vLLM local no cluster.
+#
+# Modelos disponíveis no cluster:
+#   - llama-32-3b-instruct  (padrão, já implantado)
+#   - qwen2.5-coder-14b     (recomendado para quantum_encoding — especializado em código Python/Qiskit)
+#   - mistral-small-3.2-24b (alternativa com melhor raciocínio QML, mais pesado)
+#
+# Para trocar o modelo do agente quantum_encoding:
+#   1. Implante o modelo desejado no OpenShift AI (RHOAI) e anote o endpoint do predictor
+#   2. Adicione um novo provider em models.providers (ex: "vllm-qiskit")
+#   3. Atualize o campo "model.primary" do agente quantum_encoding para "vllm-qiskit/<model-id>"
+#
+# ATENÇÃO: O serviço vLLM no OpenShift AI é headless (ClusterIP: None).
+# Com serviço headless o DNS resolve direto para o IP do pod, ignorando o
+# targetPort do Service. Por isso a porta real do container (8080) deve
+# ser usada explicitamente na URL — NÃO use a porta do Service (80).
+#
+# IMPORTANTE: Substitua os valores entre <> antes de aplicar:
+#   - <SEU_TOKEN_GATEWAY_AQUI>  → python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+#   - <SEU_DOMINIO_OPENSHIFT>   → oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}'
+#
+# Para adicionar provider vllm-qiskit (Qwen/Mistral) quando disponível:
+#   "vllm-qiskit": {
+#     "baseUrl": "http://<predictor-service>.<namespace>.svc.cluster.local:8080/v1",
+#     "apiKey": "dummy",
+#     "api": "openai-completions",
+#     "request": { "allowPrivateNetwork": true },
+#     "models": [
+#       { "id": "qwen2.5-coder-14b", "name": "Qwen2.5-Coder 14B",
+#         "reasoning": false, "input": ["text"],
+#         "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+#         "contextWindow": 32000, "maxTokens": 4096 },
+#       { "id": "mistral-small-3.2-24b", "name": "Mistral Small 3.2 24B",
+#         "reasoning": true, "input": ["text"],
+#         "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+#         "contextWindow": 32000, "maxTokens": 4096 }
+#     ]
+#   }
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-config
+  namespace: openclaw
+  labels:
+    app: openclaw
+data:
+  openclaw.json: |
+    {
+      "gateway": {
+        "mode": "local",
+        "auth": {
+          "mode": "token",
+          "token": "<SEU_TOKEN_GATEWAY_AQUI>"
+        },
+        "controlUi": {
+          "allowedOrigins": [
+            "https://openclaw-openclaw.apps.<SEU_DOMINIO_OPENSHIFT>"
+          ],
+          "dangerouslyDisableDeviceAuth": true
+        }
+      },
+      "agents": {
+        "defaults": {
+          "workspace": "~/.openclaw/workspace",
+          "model": {
+            "primary": "vllm-local/llama-32-3b-instruct"
+          }
+        },
+        "list": [
+          {
+            "id": "meu_agente",
+            "name": "Meu Agente",
+            "workspace": "~/.openclaw/workspace-meu_agente",
+            "model": {
+              "primary": "vllm-local/llama-32-3b-instruct"
+            },
+            "subagents": {
+              "allowAgents": ["*"]
+            },
+            "default": true
+          },
+          {
+            "id": "quantum_news",
+            "name": "Quantum News Agent",
+            "workspace": "~/.openclaw/workspace-quantum_news",
+            "model": {
+              "primary": "vllm-local/llama-32-3b-instruct"
+            },
+            "subagents": {
+              "allowAgents": ["*"]
+            }
+          },
+          {
+            "id": "quantum_encoding",
+            "name": "QiskitAgent",
+            "workspace": "~/.openclaw/workspace-quantum_encoding",
+            "model": {
+              "primary": "vllm-local/llama-32-3b-instruct"
+            },
+            "subagents": {
+              "allowAgents": ["*"]
+            }
+          },
+          {
+            "id": "qiskit_expert",
+            "name": "Circuit",
+            "workspace": "~/.openclaw/workspace-qiskit_expert",
+            "model": {
+              "primary": "vllm-local/llama-32-3b-instruct"
+            },
+            "subagents": {
+              "allowAgents": ["*"]
+            }
+          },
+          {
+            "id": "qiskit_mentor",
+            "name": "Quanta",
+            "workspace": "~/.openclaw/workspace-qiskit_mentor",
+            "model": {
+              "primary": "vllm-local/llama-32-3b-instruct"
+            },
+            "subagents": {
+              "allowAgents": ["*"]
+            }
+          }
+        ]
+      },
+      "models": {
+        "mode": "merge",
+        "providers": {
+          "vllm-local": {
+            "baseUrl": "http://llama-32-3b-instruct-predictor.my-first-model.svc.cluster.local:8080/v1",
+            "apiKey": "dummy",
+            "api": "openai-completions",
+            "request": {
+              "allowPrivateNetwork": true
+            },
+            "models": [
+              {
+                "id": "llama-32-3b-instruct",
+                "name": "Llama 3.2 3B Instruct (vLLM local)",
+                "reasoning": false,
+                "input": ["text"],
+                "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+                "contextWindow": 20000,
+                "maxTokens": 1024
+              }
+            ]
+          }
+        }
+      },
+      "plugins": {
+        "entries": {
+          "telegram": { "enabled": true }
+        }
+      },
+      "channels": {
+        "telegram": {
+          "botToken": "<SEU_TELEGRAM_BOT_TOKEN>",
+          "dmPolicy": "open",
+          "allowFrom": ["*"]
+        }
+      },
+      "bindings": [
+        {
+          "agentId": "quantum_news",
+          "match": { "channel": "telegram" }
+        }
+      ],
+      "skills": {
+        "load": {
+          "extraDirs": ["~/.openclaw/skills"],
+          "watch": true,
+          "watchDebounceMs": 1000
+        }
+      },
+      "cron": { "enabled": true }
+    }

@@ -1,0 +1,16 @@
+[
+  {
+    "name": "qiskit-benchmark-daily",
+    "schedule": {
+      "cron": "0 8 * * 1-5",
+      "tz": "America/Sao_Paulo"
+    },
+    "agentId": "quantum_encoding",
+    "sessionTarget": "isolated",
+    "message": "Execute um benchmark diário de encodings quânticos usando os seguintes datasets de exemplo:\n1. Dataset binário (4 features): [1, 0, 1, 0]\n2. Dataset contínuo baixa dimensão (3 features): [0.31, 0.72, 0.55]\n3. Dataset contínuo alta dimensão (8 features): [0.12, 0.45, 0.78, 0.23, 0.67, 0.34, 0.89, 0.56]\n\nPara cada dataset, chame POST http://qiskit-api:8080/v1/recommend com os dados e interprete os resultados. Produza um resumo técnico comparando: (a) o encoding recomendado para cada tipo de dado, (b) os qubits e profundidade de circuito resultantes, e (c) por que essas escolhas são adequadas.",
+    "enabled": false,
+    "delivery": {
+      "mode": "announce"
+    }
+  }
+]

@@ -1,0 +1,61 @@
+# Jobs agendados (cron) para os agentes.
+#
+# quantum-daily:          Resumo diário de notícias de computação quântica (seg-sex 7h BRT)
+# quantum-weekly:         Relatório semanal aprofundado com análise de tendências (segunda 8h BRT)
+# qiskit-benchmark-daily: Benchmark diário de encoding usando dados de exemplo (seg-sex 8h BRT)
+#
+# NOTA: Os jobs usam session "isolated" para rodar em sessão dedicada.
+# Timezone: America/Sao_Paulo (BRT/BRST)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-cron
+  namespace: openclaw
+  labels:
+    app: openclaw
+data:
+  jobs.json: |
+    [
+      {
+        "name": "quantum-daily",
+        "schedule": {
+          "cron": "0 7 * * 1-5",
+          "tz": "America/Sao_Paulo"
+        },
+        "agentId": "quantum_news",
+        "sessionTarget": "isolated",
+        "message": "Faça seu resumo diário de notícias de computação quântica. Pesquise na web por novidades das últimas 24 horas sobre: avanços em hardware quântico (IBM, Google, IonQ, Quantinuum, PsiQuantum, etc.), novos algoritmos quânticos, progresso em correção de erros quânticos, criptografia pós-quântica, e aplicações industriais de quantum computing. Use o formato de Resumo Diário definido nas suas instruções.",
+        "enabled": true,
+        "delivery": {
+          "mode": "announce"
+        }
+      },
+      {
+        "name": "quantum-weekly",
+        "schedule": {
+          "cron": "0 8 * * 1",
+          "tz": "America/Sao_Paulo"
+        },
+        "agentId": "quantum_news",
+        "sessionTarget": "isolated",
+        "message": "Faça seu relatório semanal de computação quântica. Pesquise na web e produza uma análise aprofundada da semana que passou, incluindo: os 3 avanços mais significativos da semana em quantum computing, tendências emergentes, movimentos de mercado (investimentos, parcerias, IPOs), e o que observar na próxima semana. Inclua uma recomendação de leitura (paper do arXiv ou artigo técnico relevante). Use o formato de Relatório Semanal definido nas suas instruções.",
+        "enabled": true,
+        "delivery": {
+          "mode": "announce"
+        }
+      },
+      {
+        "name": "qiskit-benchmark-daily",
+        "schedule": {
+          "cron": "0 8 * * 1-5",
+          "tz": "America/Sao_Paulo"
+        },
+        "agentId": "quantum_encoding",
+        "sessionTarget": "isolated",
+        "message": "Execute um benchmark diário de encodings quânticos usando os seguintes datasets de exemplo:\n1. Dataset binário (4 features): [1, 0, 1, 0]\n2. Dataset contínuo baixa dimensão (3 features): [0.31, 0.72, 0.55]\n3. Dataset contínuo alta dimensão (8 features): [0.12, 0.45, 0.78, 0.23, 0.67, 0.34, 0.89, 0.56]\n\nPara cada dataset, chame POST http://llama-qiskit-agents.openclaw.svc.cluster.local:8080/v1/recommend com os dados e interprete os resultados. Produza um resumo técnico comparando: (a) o encoding recomendado para cada tipo de dado, (b) os qubits e profundidade de circuito resultantes, e (c) por que essas escolhas são adequadas. Finalize com uma conclusão sobre qual tipo de dado exige mais recursos quânticos.",
+        "enabled": true,
+        "delivery": {
+          "mode": "announce"
+        }
+      }
+    ]

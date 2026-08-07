@@ -1,0 +1,5 @@
+{
+  "name": "qiskit_expert",
+  "display_name": "Circuit",
+  "description": "Engenheiro de circuitos quânticos — fala diretamente com quem já conhece QML"
+}

@@ -1,0 +1,259 @@
+# Deployment principal do OpenClaw no OpenShift.
+#
+# Contém 3 containers:
+#   1. init-config    — copia configs para o PVC antes de iniciar
+#   2. oauth-proxy    — autentica usuários via OpenShift OAuth (sem IdP externo)
+#   3. gateway        — o OpenClaw em si
+#
+# Agentes registrados:
+#   - meu_agente       (assistente genérico padrão)
+#   - quantum_news     (monitor de notícias de computação quântica)
+#   - quantum_encoding (QiskitAgent — uso geral, recomenda encoding + código)
+#   - qiskit_expert    (Circuit — para quem conhece QML; resposta densa, sem paternalism)
+#   - qiskit_mentor    (Quanta — para quem está aprendendo; constrói intuição física)
+#
+# Roda sem privilégios de root (restricted-v2 SCC padrão do OpenShift).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  namespace: openclaw
+  labels:
+    app: openclaw
+    app.kubernetes.io/managed-by: openclaw-installer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openclaw
+  strategy:
+    # Recreate garante que apenas um pod rode por vez (necessário para o PVC ReadWriteOnce)
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: openclaw
+    spec:
+      serviceAccountName: openclaw-sa
+
+      # ------------------------------------------------------------------
+      # Init container: copia configurações para o PVC antes de iniciar
+      # IMPORTANTE: sempre sobrescreve o openclaw.json e o last-good no PVC
+      # para garantir que a versão do ConfigMap seja usada.
+      # ------------------------------------------------------------------
+      initContainers:
+        - name: init-config
+          image: ghcr.io/openclaw/openclaw:latest
+          imagePullPolicy: Always
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /home/node/.openclaw
+              mkdir -p /home/node/.openclaw/workspace
+              mkdir -p /home/node/.openclaw/skills
+              mkdir -p /home/node/.openclaw/cron
+              mkdir -p /home/node/.openclaw/workspace-meu_agente
+              mkdir -p /home/node/.openclaw/workspace-quantum_news
+              mkdir -p /home/node/.openclaw/workspace-quantum_encoding
+              mkdir -p /home/node/.openclaw/workspace-qiskit_expert
+              mkdir -p /home/node/.openclaw/workspace-qiskit_mentor
+
+              # Copia config do ConfigMap APENAS se ainda não existir no PVC.
+              # Após a primeira inicialização, o openclaw.json no PVC é a fonte
+              # de verdade (contém channels, plugins, etc. configurados via CLI).
+              if [ ! -f /home/node/.openclaw/openclaw.json ]; then
+                echo "Primeira execução: copiando config do ConfigMap"
+                cp /config/openclaw.json /home/node/.openclaw/openclaw.json
+                cp /config/openclaw.json /home/node/.openclaw/openclaw.json.last-good
+                chmod 644 /home/node/.openclaw/openclaw.json
+                chmod 644 /home/node/.openclaw/openclaw.json.last-good
+              else
+                echo "Config já existe no PVC, preservando (use 'oc delete pvc' para resetar)"
+              fi
+
+              # Agente: meu_agente (assistente genérico)
+              cp /agents/AGENTS.md /home/node/.openclaw/workspace-meu_agente/AGENTS.md 2>/dev/null || true
+              cp /agents/agent.json /home/node/.openclaw/workspace-meu_agente/agent.json 2>/dev/null || true
+              cp /agents/SOUL.md /home/node/.openclaw/workspace-meu_agente/SOUL.md 2>/dev/null || true
+              cp /agents/IDENTITY.md /home/node/.openclaw/workspace-meu_agente/IDENTITY.md 2>/dev/null || true
+
+              # Agente: quantum_news (monitor de computação quântica)
+              cp /agents-quantum/AGENTS.md /home/node/.openclaw/workspace-quantum_news/AGENTS.md 2>/dev/null || true
+              cp /agents-quantum/agent.json /home/node/.openclaw/workspace-quantum_news/agent.json 2>/dev/null || true
+              cp /agents-quantum/SOUL.md /home/node/.openclaw/workspace-quantum_news/SOUL.md 2>/dev/null || true
+              cp /agents-quantum/IDENTITY.md /home/node/.openclaw/workspace-quantum_news/IDENTITY.md 2>/dev/null || true
+
+              # Agente: quantum_encoding (QiskitAgent — encoding de dados para QML)
+              cp /agents-qiskit/AGENTS.md /home/node/.openclaw/workspace-quantum_encoding/AGENTS.md 2>/dev/null || true
+              cp /agents-qiskit/agent.json /home/node/.openclaw/workspace-quantum_encoding/agent.json 2>/dev/null || true
+              cp /agents-qiskit/SOUL.md /home/node/.openclaw/workspace-quantum_encoding/SOUL.md 2>/dev/null || true
+              cp /agents-qiskit/IDENTITY.md /home/node/.openclaw/workspace-quantum_encoding/IDENTITY.md 2>/dev/null || true
+
+              # Agente: qiskit_expert (Circuit)
+              cp /agents-expert/AGENTS.md    /home/node/.openclaw/workspace-qiskit_expert/AGENTS.md   2>/dev/null || true
+              cp /agents-expert/agent.json   /home/node/.openclaw/workspace-qiskit_expert/agent.json  2>/dev/null || true
+              cp /agents-expert/SOUL.md      /home/node/.openclaw/workspace-qiskit_expert/SOUL.md     2>/dev/null || true
+              cp /agents-expert/IDENTITY.md  /home/node/.openclaw/workspace-qiskit_expert/IDENTITY.md 2>/dev/null || true
+
+              # Agente: qiskit_mentor (Quanta)
+              cp /agents-mentor/AGENTS.md    /home/node/.openclaw/workspace-qiskit_mentor/AGENTS.md   2>/dev/null || true
+              cp /agents-mentor/agent.json   /home/node/.openclaw/workspace-qiskit_mentor/agent.json  2>/dev/null || true
+              cp /agents-mentor/SOUL.md      /home/node/.openclaw/workspace-qiskit_mentor/SOUL.md     2>/dev/null || true
+              cp /agents-mentor/IDENTITY.md  /home/node/.openclaw/workspace-qiskit_mentor/IDENTITY.md 2>/dev/null || true
+
+              # Skills: recriar estrutura de subdiretórios a partir dos arquivos do ConfigMap
+              mkdir -p /home/node/.openclaw/skills/qiskit-api
+              mkdir -p /home/node/.openclaw/skills/circuit-review
+              cp /skills-src/qiskit-api-SKILL.md     /home/node/.openclaw/skills/qiskit-api/SKILL.md     2>/dev/null || true
+              cp /skills-src/circuit-review-SKILL.md /home/node/.openclaw/skills/circuit-review/SKILL.md 2>/dev/null || true
+              cp /cron-src/jobs.json /home/node/.openclaw/cron/jobs.json 2>/dev/null || true
+
+              # Plugins bundled: copiar extensão do Telegram para o PVC
+              mkdir -p /home/node/.openclaw/extensions
+              cp -r /app/dist/extensions/telegram /home/node/.openclaw/extensions/telegram 2>/dev/null || true
+
+              echo "Configuração inicializada! (meu_agente + quantum_news + quantum_encoding + Circuit + Quanta + telegram)"
+          volumeMounts:
+            - name: openclaw-home
+              mountPath: /home/node/.openclaw
+            - name: config-template
+              mountPath: /config
+            - name: agent-config
+              mountPath: /agents
+            - name: agent-quantum-config
+              mountPath: /agents-quantum
+            - name: agent-qiskit-config
+              mountPath: /agents-qiskit
+            - name: agent-expert-config
+              mountPath: /agents-expert
+            - name: agent-mentor-config
+              mountPath: /agents-mentor
+            - name: skills-config
+              mountPath: /skills-src
+            - name: cron-config
+              mountPath: /cron-src
+
+      # ------------------------------------------------------------------
+      # Containers principais
+      # ------------------------------------------------------------------
+      containers:
+
+        # ----------------------------------------------------------------
+        # Container 1: oauth-proxy
+        # Autentica usuários via OpenShift OAuth antes de chegarem ao gateway.
+        # Sem ele, o OpenClaw ficaria exposto sem autenticação.
+        # ----------------------------------------------------------------
+        - name: oauth-proxy
+          image: quay.io/openshift/origin-oauth-proxy:4.15
+          imagePullPolicy: IfNotPresent
+          args:
+            - --https-address=:8443
+            - --provider=openshift
+            - --openshift-service-account=openclaw-sa
+            - --upstream=http://localhost:18789
+            - --tls-cert=/etc/tls/private/tls.crt
+            - --tls-key=/etc/tls/private/tls.key
+            - --cookie-secret-file=/etc/proxy/secrets/session_secret
+            - '--openshift-delegate-urls={"/": {"resource": "namespaces", "verb": "get"}}'
+          ports:
+            - name: public
+              containerPort: 8443
+              protocol: TCP
+          volumeMounts:
+            - name: proxy-tls
+              mountPath: /etc/tls/private
+            - name: proxy-secret
+              mountPath: /etc/proxy/secrets
+
+        # ----------------------------------------------------------------
+        # Container 2: gateway (OpenClaw em si)
+        # ----------------------------------------------------------------
+        - name: gateway
+          image: ghcr.io/openclaw/openclaw:latest
+          imagePullPolicy: Always
+          command:
+            - node
+            - dist/index.js
+            - gateway
+            - run
+            - --bind
+            - lan
+            - --port
+            - "18789"
+            - --allow-unconfigured
+          ports:
+            - name: gateway
+              containerPort: 18789
+              protocol: TCP
+          env:
+            - name: HOME
+              value: /home/node
+            - name: NODE_ENV
+              value: production
+            - name: OPENCLAW_CONFIG_DIR
+              value: /home/node/.openclaw
+            - name: OPENCLAW_STATE_DIR
+              value: /home/node/.openclaw
+            - name: OPENCLAW_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: OPENCLAW_GATEWAY_TOKEN
+            # vLLM local não precisa de chave real, mas o OpenClaw exige a variável.
+            # O valor "dummy" é enviado no header Authorization, que o vLLM ignora.
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: OPENAI_API_KEY
+          volumeMounts:
+            - name: openclaw-home
+              mountPath: /home/node/.openclaw
+            - name: tmp-volume
+              mountPath: /tmp
+
+      # ------------------------------------------------------------------
+      # Volumes
+      # ------------------------------------------------------------------
+      volumes:
+        - name: openclaw-home
+          persistentVolumeClaim:
+            claimName: openclaw-home-pvc
+        - name: config-template
+          configMap:
+            name: openclaw-config
+        - name: agent-config
+          configMap:
+            name: openclaw-agent
+        - name: agent-quantum-config
+          configMap:
+            name: openclaw-agent-quantum
+        - name: agent-qiskit-config
+          configMap:
+            name: openclaw-agent-qiskit
+        - name: agent-expert-config
+          configMap:
+            name: openclaw-agent-expert
+        - name: agent-mentor-config
+          configMap:
+            name: openclaw-agent-mentor
+        - name: skills-config
+          configMap:
+            name: openclaw-skills
+        - name: cron-config
+          configMap:
+            name: openclaw-cron
+        - name: tmp-volume
+          emptyDir: {}
+        # TLS gerado automaticamente pelo OpenShift para o oauth-proxy
+        - name: proxy-tls
+          secret:
+            secretName: openclaw-tls
+        # Sessão segura do oauth-proxy
+        - name: proxy-secret
+          secret:
+            secretName: openclaw-oauth-proxy-secret
+            items:
+              - key: session_secret
+                path: session_secret
