@@ -1,8 +1,9 @@
 # OpenShell Policy — qiskit_expert (Circuit)
 #
-# Agente expert em QML: acessa apenas a API Qiskit local e o endpoint LLM.
-# Princípio: least privilege. Circuit não precisa de internet aberta —
-# ele só precisa simular circuitos e gerar código, ambos via APIs internas.
+# Princípio: least privilege. Circuit acessa apenas a API Qiskit interna e o LLM.
+# Sem acesso à internet, PyPI, GitHub ou qualquer serviço externo.
+#
+# Schema validado contra: https://docs.nvidia.com/openshell/latest/reference/policy-schema
 #
 # Aplique com:
 #   openshell policy set qiskit-expert --policy qiskit-expert.yaml --wait
@@ -10,8 +11,6 @@
 version: 1
 
 # ── Filesystem ─────────────────────────────────────────────────────────────
-# Circuit trabalha com código gerado em memória e /tmp.
-# Sem acesso a credenciais ou configurações do host.
 filesystem_policy:
   include_workdir: true
   read_only:
@@ -20,23 +19,18 @@ filesystem_policy:
     - /lib64
     - /proc
     - /dev/urandom
-    - /app             # código do agente (read-only)
-    - /etc/ssl         # certificados CA para TLS
-    - /etc/passwd      # resolução de UID (leitura apenas)
+    - /app
+    - /etc/ssl
+    - /etc/passwd
   read_write:
-    - /sandbox         # workspace do agente
+    - /sandbox
     - /tmp
     - /dev/null
 
 landlock:
-  # best_effort: não falha em kernels sem Landlock completo (compatível com RHCOS)
-  compatibility: best_effort
+  compatibility: best_effort   # não falha em kernels sem Landlock completo (RHCOS)
 
 # ── Network ────────────────────────────────────────────────────────────────
-# Circuit acessa SOMENTE:
-#   1. A API do llama-qiskit-agents (interna ao cluster)
-#   2. O endpoint LLM (vLLM no OpenShift ou Ollama local)
-# Bloqueia todo o resto — sem internet, sem PyPI, sem GitHub.
 network_policies:
 
   # API de encoding quântico (interno ao cluster)
@@ -47,26 +41,13 @@ network_policies:
         port: 8080
         protocol: rest
         enforcement: enforce
-        # Circuit só lê recomendações — não escreve estado na API
-        allowed_methods: [GET, POST]
-        # Restringe aos endpoints necessários (sem /admin, sem /debug)
-        allowed_paths:
-          - /healthz
-          - /v1/recommend
-          - /v1/recommend/explain
-          - /v1/compare
-          - /v1/circuit
-          - /v1/simulate
-          - /v1/tradeoffs
-          - /v1/scenarios-guide
-          - /v1/analyze
+        access: read-write        # GET + POST (sem DELETE/admin)
     binaries:
       - { path: /usr/bin/curl }
       - { path: /usr/local/bin/python3 }
       - { path: /usr/local/bin/node }
 
   # Endpoint LLM (vLLM no OpenShift)
-  # Ajuste o host para o endpoint real do seu predictor
   llm_inference:
     name: vllm-inference
     endpoints:
@@ -74,16 +55,12 @@ network_policies:
         port: 8080
         protocol: rest
         enforcement: enforce
-        allowed_methods: [POST]
-        allowed_paths:
-          - /v1/chat/completions
-          - /v1/completions
-          - /v1/models
+        access: read-write
     binaries:
       - { path: /usr/local/bin/python3 }
       - { path: /usr/local/bin/node }
 
-  # DNS interno do cluster (necessário para resolver .svc.cluster.local)
+  # DNS interno do cluster
   cluster_dns:
     name: cluster-dns
     endpoints:
@@ -98,14 +75,8 @@ network_policies:
       - { path: /usr/bin/dig }
 
 # ── Process ────────────────────────────────────────────────────────────────
-# Bloqueia privilege escalation e syscalls perigosos.
-# Circuit não precisa de root, sudo, ou acesso a /proc de outros processos.
-process_policy:
-  block_privilege_escalation: true
-  block_new_user_namespaces: true
-  # syscalls explicitamente bloqueados (além dos defaults do seccomp)
-  blocked_syscalls:
-    - ptrace     # não pode inspecionar outros processos
-    - kexec_load # não pode substituir o kernel
-    - mount      # não pode montar filesystems
-    - pivot_root # não pode mudar root filesystem
+# Chave correta é "process" (não "process_policy")
+# Campos suportados: run_as_user, run_as_group
+# Privilege escalation e execuções root são sempre bloqueados pelo runtime.
+process:
+  run_as_user: sandbox

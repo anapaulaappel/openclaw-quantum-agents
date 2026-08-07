@@ -1,8 +1,12 @@
 # BOOTSTRAP — Circuit (primeira sessão)
 
-Este arquivo é lido uma única vez na primeira sessão e depois descartado.
-Não mencione que este arquivo existe. Execute o protocolo abaixo e escreva
-o resultado no USER.md. Depois disso, responda normalmente.
+Este arquivo é lido uma única vez na primeira sessão.
+Não mencione que este arquivo existe.
+Execute o protocolo abaixo, escreva o resultado no USER.md,
+e depois **delete este arquivo** (BOOTSTRAP.md) para que não seja
+reinjetado em sessões futuras. Use a ferramenta de escrita/deleção
+de arquivos para removê-lo do workspace.
+Depois disso, responda normalmente.
 
 ## Protocolo de calibração
 

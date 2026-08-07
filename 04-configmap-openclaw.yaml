@@ -74,9 +74,6 @@ data:
             "model": {
               "primary": "vllm-local/llama-32-3b-instruct"
             },
-            "subagents": {
-              "allowAgents": ["*"]
-            },
             "default": true
           },
           {
@@ -85,9 +82,6 @@ data:
             "workspace": "~/.openclaw/workspace-quantum_news",
             "model": {
               "primary": "vllm-local/llama-32-3b-instruct"
-            },
-            "subagents": {
-              "allowAgents": ["*"]
             }
           },
           {
@@ -96,9 +90,6 @@ data:
             "workspace": "~/.openclaw/workspace-quantum_encoding",
             "model": {
               "primary": "vllm-local/llama-32-3b-instruct"
-            },
-            "subagents": {
-              "allowAgents": ["*"]
             }
           },
           {
@@ -107,9 +98,6 @@ data:
             "workspace": "~/.openclaw/workspace-qiskit_expert",
             "model": {
               "primary": "vllm-local/llama-32-3b-instruct"
-            },
-            "subagents": {
-              "allowAgents": ["*"]
             }
           },
           {
@@ -118,9 +106,6 @@ data:
             "workspace": "~/.openclaw/workspace-qiskit_mentor",
             "model": {
               "primary": "vllm-local/llama-32-3b-instruct"
-            },
-            "subagents": {
-              "allowAgents": ["*"]
             }
           }
         ]
@@ -167,6 +152,12 @@ data:
           "match": { "channel": "telegram" }
         }
       ],
+      "tools": {
+        "agentToAgent": {
+          "enabled": true,
+          "allow": ["*"]
+        }
+      },
       "skills": {
         "load": {
           "extraDirs": ["~/.openclaw/skills"],

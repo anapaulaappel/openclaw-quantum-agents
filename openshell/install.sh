@@ -54,25 +54,29 @@ create_sandboxes() {
   local gateway_url="${1:-http://localhost:8080}"
   info "Criando sandboxes dos agentes..."
 
-  # NemoClaw: imagem oficial NVIDIA com OpenClaw pré-instalado
+  # NemoClaw: imagem oficial NVIDIA com OpenClaw pré-instalado.
+  # "openclaw" não é um nome registrado no catálogo OpenShell —
+  # use o path completo da imagem NemoClaw (ghcr.io/nvidia/nemoclaw).
+  NEMOCLAW_IMAGE="${NEMOCLAW_IMAGE:-ghcr.io/nvidia/nemoclaw:latest}"
+
   OPENSHELL_GATEWAY="$gateway_url" openshell sandbox create \
     --name qiskit-expert \
     --policy qiskit-expert \
-    --from openclaw \
+    --from "$NEMOCLAW_IMAGE" \
     -- openclaw gateway run --bind lan --port 18789 --allow-unconfigured
   success "Sandbox criado: qiskit-expert"
 
   OPENSHELL_GATEWAY="$gateway_url" openshell sandbox create \
     --name qiskit-mentor \
     --policy qiskit-mentor \
-    --from openclaw \
+    --from "$NEMOCLAW_IMAGE" \
     -- openclaw gateway run --bind lan --port 18790 --allow-unconfigured
   success "Sandbox criado: qiskit-mentor"
 
   OPENSHELL_GATEWAY="$gateway_url" openshell sandbox create \
     --name quantum-encoding \
     --policy quantum-encoding \
-    --from openclaw \
+    --from "$NEMOCLAW_IMAGE" \
     -- openclaw gateway run --bind lan --port 18791 --allow-unconfigured
   success "Sandbox criado: quantum-encoding"
 }

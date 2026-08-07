@@ -8,14 +8,18 @@ name: quantum-openshell-local
 #   ollama             — LLM local (Qwen 14B / Mistral 24B)
 #
 # Os agentes (Circuit, Quanta, QiskitAgent) rodam como sandboxes OpenShell,
-# criados com: openshell sandbox create --from openclaw
+# criados via NemoClaw (imagem oficial NVIDIA com OpenClaw pré-instalado).
 # NÃO como containers Docker diretos.
 #
 # Uso:
 #   cp .env.example .env
 #   docker compose up -d
-#   openshell sandbox create --from openclaw   # cria sandbox para o agente
+#   NEMOCLAW=ghcr.io/nvidia/nemoclaw:latest
+#   openshell sandbox create --from "$NEMOCLAW" -- openclaw gateway run ...
 #   openshell policy set qiskit-expert --policy ../policies/qiskit-expert.yaml
+#
+# Nota: "openclaw" não é um nome registrado no catálogo OpenShell.
+# Use sempre o path completo da imagem NemoClaw.
 
 services:
 

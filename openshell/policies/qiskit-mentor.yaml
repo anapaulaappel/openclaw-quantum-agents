@@ -1,9 +1,9 @@
 # OpenShell Policy — qiskit_mentor (Quanta)
 #
-# Agente pedagógico de QML: acessa a API Qiskit local, o LLM,
-# E também recursos acadêmicos externos (arXiv, documentação Qiskit).
-# Quanta pode buscar papers e documentação para enriquecer explicações —
-# mas apenas em leitura, apenas em domínios pré-aprovados.
+# Quanta adiciona acesso de leitura a recursos acadêmicos externos
+# (arXiv + docs Qiskit) para enriquecer explicações com referências reais.
+#
+# Schema validado contra: https://docs.nvidia.com/openshell/latest/reference/policy-schema
 #
 # Aplique com:
 #   openshell policy set qiskit-mentor --policy qiskit-mentor.yaml --wait
@@ -23,7 +23,7 @@ filesystem_policy:
     - /etc/ssl
     - /etc/passwd
   read_write:
-    - /sandbox         # workspace onde Quanta pode salvar notas do usuário
+    - /sandbox
     - /tmp
     - /dev/null
 
@@ -31,13 +31,6 @@ landlock:
   compatibility: best_effort
 
 # ── Network ────────────────────────────────────────────────────────────────
-# Quanta tem acesso mais amplo que Circuit:
-#   - API Qiskit interna (mesma que Circuit)
-#   - Endpoint LLM
-#   - arXiv (papers de QML para citar)
-#   - Documentação oficial do Qiskit
-#   - IBM Quantum documentation
-# Tudo em GET apenas — sem POST para serviços externos.
 network_policies:
 
   # API de encoding quântico (interno ao cluster)
@@ -48,17 +41,7 @@ network_policies:
         port: 8080
         protocol: rest
         enforcement: enforce
-        allowed_methods: [GET, POST]
-        allowed_paths:
-          - /healthz
-          - /v1/recommend
-          - /v1/recommend/explain
-          - /v1/compare
-          - /v1/circuit
-          - /v1/simulate
-          - /v1/tradeoffs
-          - /v1/scenarios-guide
-          - /v1/analyze
+        access: read-write
     binaries:
       - { path: /usr/bin/curl }
       - { path: /usr/local/bin/python3 }
@@ -72,17 +55,12 @@ network_policies:
         port: 8080
         protocol: rest
         enforcement: enforce
-        allowed_methods: [POST]
-        allowed_paths:
-          - /v1/chat/completions
-          - /v1/completions
-          - /v1/models
+        access: read-write
     binaries:
       - { path: /usr/local/bin/python3 }
       - { path: /usr/local/bin/node }
 
-  # arXiv — papers de QML (leitura apenas)
-  # Quanta usa para citar referências em explicações
+  # arXiv — papers de QML (somente leitura)
   arxiv_papers:
     name: arxiv-readonly
     endpoints:
@@ -90,15 +68,11 @@ network_policies:
         port: 443
         protocol: rest
         enforcement: enforce
-        access: read-only        # bloqueia POST, PUT, DELETE
-        allowed_paths:
-          - /abs/*               # abstract pages
-          - /pdf/*               # PDF downloads
-          - /search/*            # search API
+        access: read-only          # GET, HEAD, OPTIONS apenas
     binaries:
       - { path: /usr/bin/curl }
 
-  # Documentação Qiskit (leitura apenas)
+  # Documentação Qiskit (somente leitura)
   qiskit_docs:
     name: qiskit-docs-readonly
     endpoints:
@@ -124,11 +98,5 @@ network_policies:
       - { path: /usr/local/bin/node }
 
 # ── Process ────────────────────────────────────────────────────────────────
-process_policy:
-  block_privilege_escalation: true
-  block_new_user_namespaces: true
-  blocked_syscalls:
-    - ptrace
-    - kexec_load
-    - mount
-    - pivot_root
+process:
+  run_as_user: sandbox

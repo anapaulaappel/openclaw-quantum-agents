@@ -1,8 +1,9 @@
 # OpenShell Policy — quantum_encoding (QiskitAgent)
 #
-# Agente de uso geral para encoding quântico: acessa API Qiskit + LLM.
-# Policy intermediária — mais restrita que Quanta (sem acesso externo),
-# igual a Circuit em termos de rede, mas permite acesso CSV via /tmp.
+# Policy geral para o agente QiskitAgent. Acesso à API Qiskit + LLM.
+# Permite /tmp para uploads de CSV via /v1/compare/csv.
+#
+# Schema validado contra: https://docs.nvidia.com/openshell/latest/reference/policy-schema
 #
 # Aplique com:
 #   openshell policy set quantum-encoding --policy quantum-encoding.yaml --wait
@@ -22,7 +23,7 @@ filesystem_policy:
     - /etc/passwd
   read_write:
     - /sandbox
-    - /tmp             # uploads de CSV via /v1/compare/csv passam por aqui
+    - /tmp             # uploads de CSV passam por aqui
     - /dev/null
 
 landlock:
@@ -37,19 +38,7 @@ network_policies:
         port: 8080
         protocol: rest
         enforcement: enforce
-        allowed_methods: [GET, POST]
-        allowed_paths:
-          - /healthz
-          - /v1/recommend
-          - /v1/recommend/explain
-          - /v1/compare
-          - /v1/compare/csv
-          - /v1/circuit
-          - /v1/simulate
-          - /v1/tradeoffs
-          - /v1/scenarios-guide
-          - /v1/analyze
-          - /v1/analyze/text
+        access: read-write
     binaries:
       - { path: /usr/bin/curl }
       - { path: /usr/local/bin/python3 }
@@ -62,11 +51,7 @@ network_policies:
         port: 8080
         protocol: rest
         enforcement: enforce
-        allowed_methods: [POST]
-        allowed_paths:
-          - /v1/chat/completions
-          - /v1/completions
-          - /v1/models
+        access: read-write
     binaries:
       - { path: /usr/local/bin/python3 }
       - { path: /usr/local/bin/node }
@@ -83,11 +68,5 @@ network_policies:
       - { path: /usr/local/bin/python3 }
       - { path: /usr/local/bin/node }
 
-process_policy:
-  block_privilege_escalation: true
-  block_new_user_namespaces: true
-  blocked_syscalls:
-    - ptrace
-    - kexec_load
-    - mount
-    - pivot_root
+process:
+  run_as_user: sandbox

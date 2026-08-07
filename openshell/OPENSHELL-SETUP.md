@@ -76,10 +76,13 @@ openshell policy set qiskit-expert --policy policies/qiskit-expert.yaml --wait
 openshell policy set qiskit-mentor --policy policies/qiskit-mentor.yaml --wait
 openshell policy set quantum-encoding --policy policies/quantum-encoding.yaml --wait
 
-# 4. Criar sandboxes (OpenClaw dentro do OpenShell)
-openshell sandbox create --name qiskit-expert   --policy qiskit-expert   --from openclaw
-openshell sandbox create --name qiskit-mentor   --policy qiskit-mentor   --from openclaw
-openshell sandbox create --name quantum-encoding --policy quantum-encoding --from openclaw
+# 4. Criar sandboxes (OpenClaw dentro do OpenShell via NemoClaw)
+# "openclaw" não é um nome registrado no catálogo — use a imagem NemoClaw completa.
+# Confirme a última versão em: https://github.com/NVIDIA/NemoClaw
+NEMOCLAW=ghcr.io/nvidia/nemoclaw:latest
+openshell sandbox create --name qiskit-expert   --policy qiskit-expert   --from "$NEMOCLAW"
+openshell sandbox create --name qiskit-mentor   --policy qiskit-mentor   --from "$NEMOCLAW"
+openshell sandbox create --name quantum-encoding --policy quantum-encoding --from "$NEMOCLAW"
 
 # 5. Ver sandboxes ativos
 openshell sandbox list
@@ -129,9 +132,10 @@ openshell policy set qiskit-mentor   --policy policies/qiskit-mentor.yaml   --wa
 openshell policy set quantum-encoding --policy policies/quantum-encoding.yaml --wait
 
 # Criar sandboxes
-openshell sandbox create --name qiskit-expert   --policy qiskit-expert   --from openclaw
-openshell sandbox create --name qiskit-mentor   --policy qiskit-mentor   --from openclaw
-openshell sandbox create --name quantum-encoding --policy quantum-encoding --from openclaw
+NEMOCLAW=ghcr.io/nvidia/nemoclaw:latest
+openshell sandbox create --name qiskit-expert   --policy qiskit-expert   --from "$NEMOCLAW"
+openshell sandbox create --name qiskit-mentor   --policy qiskit-mentor   --from "$NEMOCLAW"
+openshell sandbox create --name quantum-encoding --policy quantum-encoding --from "$NEMOCLAW"
 ```
 
 ---
