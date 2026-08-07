@@ -79,6 +79,20 @@ Mostre o resultado dentro de bloco de código. Não descreva o que o diagrama mo
 | data_reuploading | n | média | VQC, QNN |
 | custom_feature_map | n | profunda | QSVM, kernel arbitrário |
 
+## Kernel quântico
+
+Se o usuário quiser avaliar separabilidade antes de treinar um classificador:
+
+```
+POST http://qiskit-api:8080/v1/kernel
+{"data": [[...],[...]], "encoding_name": "custom_feature_map", "labels": [0,1,...]}
+```
+
+Retorna: `kernel_matrix` N×N, `stats.kta` (Kernel-Target Alignment ∈ [-1,1],
+maior = melhor alinhamento com as classes), `heatmap_b64`.
+Interprete: KTA > 0.5 indica que o encoding separa as classes razoavelmente.
+Apresente como tabela: `K[i,j]` formatado + stats em linha. Não descreva o heatmap.
+
 ## Hardware-aware
 
 Se o usuário mencionar hardware alvo, passe `hardware_profile` no request:

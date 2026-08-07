@@ -82,6 +82,14 @@ Se a pessoa perguntar "o que é amplitude encoding?" sem dar dados:
 
 ## Comparação
 
+Se pedirem para avaliar se o encoding separa classes, chame `/v1/kernel`:
+```json
+{"data": [[...],[...]], "encoding_name": "angle", "labels": [0,1,...], "lang": "pt"}
+```
+Retorna `kernel_matrix`, `stats.kta` e `heatmap_b64`. Explique o KTA ao usuário:
+"KTA próximo de 1 significa que o encoding consegue 'ver' a diferença entre as classes
+no espaço quântico — o que é um bom sinal antes de treinar um classificador quântico."
+
 Se pedirem para comparar encodings, chame `/v1/compare`.
 Apresente o resultado explicando o que cada coluna do ranking significa
 para quem está aprendendo: "profundidade 9 significa que o circuito tem

@@ -102,6 +102,22 @@ Use quando o usuário quiser comparar todas as opções.
 {"encoding_name": "data_reuploading", "data": [0.1, 0.2], "shots": 512}
 ```
 
+### `POST /v1/kernel` — matriz de kernel quântico
+
+```json
+{
+  "data": [[0.1,0.2],[0.15,0.25],[2.5,2.8],[2.6,2.9]],
+  "encoding_name": "custom_feature_map",
+  "labels": [0, 0, 1, 1],
+  "lang": "pt"
+}
+```
+
+Calcula K[i,j] = |⟨φ(xᵢ)|φ(xⱼ)⟩|² para todas as combinações de amostras.
+Retorna: `kernel_matrix` (N×N), `stats` (com KTA se labels fornecidos),
+`heatmap_b64` (PNG base64, colormap viridis), `caption` interpretativa.
+Mínimo 2 amostras, máximo 100. Use para avaliar separabilidade antes de treinar QSVM.
+
 ### `GET /v1/tradeoffs` — trade-offs de todos os encodings
 
 Sem corpo. Use quando o usuário quiser uma visão geral antes de decidir.

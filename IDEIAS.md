@@ -100,7 +100,7 @@ Python que chama a API. Alta visibilidade para o time de ML da Red Hat.
 
 ## Tier 2 — Médio prazo (semanas)
 
-### 5. Endpoint `POST /v1/kernel` — matriz de kernel quântico
+### 5. Endpoint `POST /v1/kernel` — matriz de kernel quântico ✓ IMPLEMENTADO (commit 738b8ad)
 
 O `FidelityQuantumKernel` do Qiskit ML calcula a matriz K entre amostras.
 É a saída mais concreta de QML: mostra se o encoding consegue separar as classes.
