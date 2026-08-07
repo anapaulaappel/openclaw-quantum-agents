@@ -82,7 +82,7 @@ Adicionar ao endpoint `/v1/simulate` como campo opcional `include_bloch: bool`.
 
 ---
 
-### 4. Kubeflow Pipeline para RHOAI
+### 4. Kubeflow Pipeline para RHOAI ✓ IMPLEMENTADO (deploy/rhoai/)
 
 Um manifesto YAML de pipeline Kubeflow que encadeia os endpoints existentes
 como etapas de um pipeline de ML:
