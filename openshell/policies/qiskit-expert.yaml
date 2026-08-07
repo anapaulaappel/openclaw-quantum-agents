@@ -1,0 +1,111 @@
+# OpenShell Policy — qiskit_expert (Circuit)
+#
+# Agente expert em QML: acessa apenas a API Qiskit local e o endpoint LLM.
+# Princípio: least privilege. Circuit não precisa de internet aberta —
+# ele só precisa simular circuitos e gerar código, ambos via APIs internas.
+#
+# Aplique com:
+#   openshell policy set qiskit-expert --policy qiskit-expert.yaml --wait
+
+version: 1
+
+# ── Filesystem ─────────────────────────────────────────────────────────────
+# Circuit trabalha com código gerado em memória e /tmp.
+# Sem acesso a credenciais ou configurações do host.
+filesystem_policy:
+  include_workdir: true
+  read_only:
+    - /usr
+    - /lib
+    - /lib64
+    - /proc
+    - /dev/urandom
+    - /app             # código do agente (read-only)
+    - /etc/ssl         # certificados CA para TLS
+    - /etc/passwd      # resolução de UID (leitura apenas)
+  read_write:
+    - /sandbox         # workspace do agente
+    - /tmp
+    - /dev/null
+
+landlock:
+  # best_effort: não falha em kernels sem Landlock completo (compatível com RHCOS)
+  compatibility: best_effort
+
+# ── Network ────────────────────────────────────────────────────────────────
+# Circuit acessa SOMENTE:
+#   1. A API do llama-qiskit-agents (interna ao cluster)
+#   2. O endpoint LLM (vLLM no OpenShift ou Ollama local)
+# Bloqueia todo o resto — sem internet, sem PyPI, sem GitHub.
+network_policies:
+
+  # API de encoding quântico (interno ao cluster)
+  qiskit_api:
+    name: qiskit-agents-api
+    endpoints:
+      - host: llama-qiskit-agents.openclaw.svc.cluster.local
+        port: 8080
+        protocol: rest
+        enforcement: enforce
+        # Circuit só lê recomendações — não escreve estado na API
+        allowed_methods: [GET, POST]
+        # Restringe aos endpoints necessários (sem /admin, sem /debug)
+        allowed_paths:
+          - /healthz
+          - /v1/recommend
+          - /v1/recommend/explain
+          - /v1/compare
+          - /v1/circuit
+          - /v1/simulate
+          - /v1/tradeoffs
+          - /v1/scenarios-guide
+          - /v1/analyze
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/local/bin/python3 }
+      - { path: /usr/local/bin/node }
+
+  # Endpoint LLM (vLLM no OpenShift)
+  # Ajuste o host para o endpoint real do seu predictor
+  llm_inference:
+    name: vllm-inference
+    endpoints:
+      - host: llama-32-3b-instruct-predictor.my-first-model.svc.cluster.local
+        port: 8080
+        protocol: rest
+        enforcement: enforce
+        allowed_methods: [POST]
+        allowed_paths:
+          - /v1/chat/completions
+          - /v1/completions
+          - /v1/models
+    binaries:
+      - { path: /usr/local/bin/python3 }
+      - { path: /usr/local/bin/node }
+
+  # DNS interno do cluster (necessário para resolver .svc.cluster.local)
+  cluster_dns:
+    name: cluster-dns
+    endpoints:
+      - host: kube-dns.kube-system.svc.cluster.local
+        port: 53
+        protocol: udp
+        enforcement: enforce
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/local/bin/python3 }
+      - { path: /usr/local/bin/node }
+      - { path: /usr/bin/dig }
+
+# ── Process ────────────────────────────────────────────────────────────────
+# Bloqueia privilege escalation e syscalls perigosos.
+# Circuit não precisa de root, sudo, ou acesso a /proc de outros processos.
+process_policy:
+  block_privilege_escalation: true
+  block_new_user_namespaces: true
+  # syscalls explicitamente bloqueados (além dos defaults do seccomp)
+  blocked_syscalls:
+    - ptrace     # não pode inspecionar outros processos
+    - kexec_load # não pode substituir o kernel
+    - mount      # não pode montar filesystems
+    - pivot_root # não pode mudar root filesystem

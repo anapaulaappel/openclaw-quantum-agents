@@ -1,0 +1,121 @@
+# OpenShell Helm values — Red Hat OpenShift
+#
+# Instale com:
+#   helm install openshell oci://ghcr.io/nvidia/openshell/helm-chart \
+#     --version <OPENSHELL_VERSION> \
+#     -n openshell \
+#     -f values-openshift.yaml
+#
+# Antes de instalar, execute:
+#   oc create ns openshell
+#   oc adm policy add-scc-to-user privileged -z openshell-sandbox -n openshell
+#
+# Substitua os valores entre <> antes de aplicar.
+
+# ── TLS ────────────────────────────────────────────────────────────────────
+# OpenShift Route termina TLS na borda (edge ou reencrypt).
+# O gateway OpenShell fica em HTTP dentro do cluster.
+server:
+  disableTls: true
+
+  # ── Autenticação ──────────────────────────────────────────────────────────
+  # OIDC via Red Hat SSO (Keycloak) ou Azure Entra ID.
+  # Descomente e preencha para habilitar login federado.
+  # oidc:
+  #   issuer: "https://<SEU_KEYCLOAK>/realms/<SEU_REALM>"
+  #   clientId: "<SEU_CLIENT_ID>"
+  #   # Se o cluster tiver CA privada (comum no OpenShift):
+  #   caConfigMapName: "openshift-service-ca.crt"
+
+  # ── Persistência ──────────────────────────────────────────────────────────
+  # Para desenvolvimento: SQLite (StatefulSet padrão).
+  # Para produção com HA: PostgreSQL externo.
+  #
+  # database:
+  #   external:
+  #     enabled: true
+  #     host: "<SEU_POSTGRES_HOST>"
+  #     port: 5432
+  #     name: openshell
+  #     existingSecret: openshell-db-secret   # keys: username, password
+
+  # ── Credenciais dos provedores LLM ───────────────────────────────────────
+  # O OpenShell injeta credenciais nos sandboxes via Privacy Router.
+  # Não precisam ser expostas nos manifestos dos agentes.
+  #
+  # providers:
+  #   vllm:
+  #     type: openai-compatible
+  #     baseUrl: "http://llama-32-3b-instruct-predictor.my-first-model.svc.cluster.local:8080/v1"
+  #     existingSecret: openshell-llm-secret  # key: apiKey (pode ser "dummy")
+
+  # ── Topologia dos sandboxes ───────────────────────────────────────────────
+  # "sidecar": supervisor em container separado — melhor isolamento de rede.
+  # "combined": supervisor no mesmo container — mais simples, menos overhead.
+  sandboxTopology: sidecar
+
+  # ── SPIFFE/SPIRE (opcional, para credential injection avançada) ───────────
+  # providerTokenGrants:
+  #   spiffe:
+  #     enabled: false
+
+# ── Security context ───────────────────────────────────────────────────────
+# OpenShift controla fsGroup e runAsUser via SCC — não defina no pod spec.
+podSecurityContext:
+  fsGroup: null
+
+securityContext:
+  runAsUser: null
+  # O SCC privileged (concedido acima via oc adm policy) cuida do resto.
+
+# ── Sandbox service account ────────────────────────────────────────────────
+# O SCC privileged é vinculado a esta service account.
+sandbox:
+  serviceAccount:
+    name: openshell-sandbox
+    create: true
+
+# ── Resources ─────────────────────────────────────────────────────────────
+# Gateway: leve (só coordenação, sem inferência).
+# Sandbox: ajuste conforme o modelo e workload do agente.
+gateway:
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "512Mi"
+
+sandboxDefaults:
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+# ── Métricas ───────────────────────────────────────────────────────────────
+metrics:
+  enabled: true
+  port: 9090
+  # ServiceMonitor para Prometheus Operator (Red Hat ACM / OpenShift Monitoring)
+  serviceMonitor:
+    enabled: true
+    namespace: openshell
+
+# ── Networking ────────────────────────────────────────────────────────────
+# NetworkPolicy: restringe ingress SSH nos sandbox pods ao gateway.
+networkPolicy:
+  enabled: true
+
+# ── Imagem base dos sandboxes ─────────────────────────────────────────────
+# NemoClaw: imagem oficial da NVIDIA com OpenClaw pré-instalado.
+# Usada quando `openshell sandbox create --from openclaw`.
+#
+# Para o QiskitAgent, use a imagem customizada (build em quantum-encoding-agents).
+# sandboxImage:
+#   registry: ghcr.io/nvidia/openshell
+#   repository: nemoclaw
+#   tag: latest

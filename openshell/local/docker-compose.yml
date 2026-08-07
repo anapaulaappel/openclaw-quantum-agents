@@ -1,0 +1,113 @@
+name: quantum-openshell-local
+
+# Stack de desenvolvimento local com NVIDIA OpenShell.
+#
+# Serviços:
+#   openshell-gateway  — control plane do OpenShell (gateway + policy engine)
+#   qiskit-api         — API REST de encoding quântico (llama-qiskit-agents)
+#   ollama             — LLM local (Qwen 14B / Mistral 24B)
+#
+# Os agentes (Circuit, Quanta, QiskitAgent) rodam como sandboxes OpenShell,
+# criados com: openshell sandbox create --from openclaw
+# NÃO como containers Docker diretos.
+#
+# Uso:
+#   cp .env.example .env
+#   docker compose up -d
+#   openshell sandbox create --from openclaw   # cria sandbox para o agente
+#   openshell policy set qiskit-expert --policy ../policies/qiskit-expert.yaml
+
+services:
+
+  # ── OpenShell Gateway ─────────────────────────────────────────────────────
+  # Control plane: gerencia sandboxes, policies e credenciais.
+  openshell-gateway:
+    image: ghcr.io/nvidia/openshell/gateway:latest
+    container_name: quantum-openshell-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"      # gRPC + HTTP API (CLI usa esta porta)
+      - "8081:8081"      # health check
+      - "9090:9090"      # Prometheus metrics
+    volumes:
+      - openshell-data:/var/lib/openshell   # SQLite + políticas persistidas
+      - /var/run/docker.sock:/var/run/docker.sock  # para criar sandbox containers
+    environment:
+      - OPENSHELL_LOG_LEVEL=info
+      - OPENSHELL_DISABLE_TLS=true           # TLS encerrado no edge (ou desabilitado em dev)
+      - OPENSHELL_BIND=0.0.0.0:8080
+      # Credencial do LLM — injetada nos sandboxes via Privacy Router
+      # O agente NUNCA vê essa variável diretamente
+      - OPENSHELL_PROVIDER_VLLM_API_KEY=dummy
+      - OPENSHELL_PROVIDER_VLLM_BASE_URL=http://ollama:11434/v1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/healthz"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # ── Ollama (LLM local) ────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: quantum-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── Model Puller ──────────────────────────────────────────────────────────
+  model-puller:
+    image: ollama/ollama:latest
+    container_name: quantum-model-puller
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - MODEL=${OPENCLAW_MODEL:-qwen2.5-coder:14b}
+    entrypoint: ["sh", "-c", "ollama pull $$MODEL && echo '✓ Modelo pronto'"]
+
+  # ── llama-qiskit-agents (API quantum) ────────────────────────────────────
+  qiskit-api:
+    build:
+      context: ../../../llama-qiskit-agents
+      dockerfile: Dockerfile
+    image: llama-qiskit-agents:local
+    container_name: quantum-qiskit-api
+    restart: unless-stopped
+    ports:
+      - "8090:8080"      # 8090 externo para não colidir com o gateway OpenShell
+    environment:
+      - PORT=8080
+      - CORS_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+# ── Rede ──────────────────────────────────────────────────────────────────
+# Os sandboxes OpenShell são criados pelo gateway e entram nessa rede.
+networks:
+  default:
+    name: quantum-openshell-net
+
+volumes:
+  openshell-data:
+    name: quantum-openshell-data
+  ollama-data:
+    name: quantum-ollama-data

@@ -1,0 +1,134 @@
+# OpenShell Policy — qiskit_mentor (Quanta)
+#
+# Agente pedagógico de QML: acessa a API Qiskit local, o LLM,
+# E também recursos acadêmicos externos (arXiv, documentação Qiskit).
+# Quanta pode buscar papers e documentação para enriquecer explicações —
+# mas apenas em leitura, apenas em domínios pré-aprovados.
+#
+# Aplique com:
+#   openshell policy set qiskit-mentor --policy qiskit-mentor.yaml --wait
+
+version: 1
+
+# ── Filesystem ─────────────────────────────────────────────────────────────
+filesystem_policy:
+  include_workdir: true
+  read_only:
+    - /usr
+    - /lib
+    - /lib64
+    - /proc
+    - /dev/urandom
+    - /app
+    - /etc/ssl
+    - /etc/passwd
+  read_write:
+    - /sandbox         # workspace onde Quanta pode salvar notas do usuário
+    - /tmp
+    - /dev/null
+
+landlock:
+  compatibility: best_effort
+
+# ── Network ────────────────────────────────────────────────────────────────
+# Quanta tem acesso mais amplo que Circuit:
+#   - API Qiskit interna (mesma que Circuit)
+#   - Endpoint LLM
+#   - arXiv (papers de QML para citar)
+#   - Documentação oficial do Qiskit
+#   - IBM Quantum documentation
+# Tudo em GET apenas — sem POST para serviços externos.
+network_policies:
+
+  # API de encoding quântico (interno ao cluster)
+  qiskit_api:
+    name: qiskit-agents-api
+    endpoints:
+      - host: llama-qiskit-agents.openclaw.svc.cluster.local
+        port: 8080
+        protocol: rest
+        enforcement: enforce
+        allowed_methods: [GET, POST]
+        allowed_paths:
+          - /healthz
+          - /v1/recommend
+          - /v1/recommend/explain
+          - /v1/compare
+          - /v1/circuit
+          - /v1/simulate
+          - /v1/tradeoffs
+          - /v1/scenarios-guide
+          - /v1/analyze
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/local/bin/python3 }
+      - { path: /usr/local/bin/node }
+
+  # Endpoint LLM
+  llm_inference:
+    name: vllm-inference
+    endpoints:
+      - host: llama-32-3b-instruct-predictor.my-first-model.svc.cluster.local
+        port: 8080
+        protocol: rest
+        enforcement: enforce
+        allowed_methods: [POST]
+        allowed_paths:
+          - /v1/chat/completions
+          - /v1/completions
+          - /v1/models
+    binaries:
+      - { path: /usr/local/bin/python3 }
+      - { path: /usr/local/bin/node }
+
+  # arXiv — papers de QML (leitura apenas)
+  # Quanta usa para citar referências em explicações
+  arxiv_papers:
+    name: arxiv-readonly
+    endpoints:
+      - host: arxiv.org
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-only        # bloqueia POST, PUT, DELETE
+        allowed_paths:
+          - /abs/*               # abstract pages
+          - /pdf/*               # PDF downloads
+          - /search/*            # search API
+    binaries:
+      - { path: /usr/bin/curl }
+
+  # Documentação Qiskit (leitura apenas)
+  qiskit_docs:
+    name: qiskit-docs-readonly
+    endpoints:
+      - host: docs.quantum.ibm.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-only
+    binaries:
+      - { path: /usr/bin/curl }
+
+  # DNS interno
+  cluster_dns:
+    name: cluster-dns
+    endpoints:
+      - host: kube-dns.kube-system.svc.cluster.local
+        port: 53
+        protocol: udp
+        enforcement: enforce
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/local/bin/python3 }
+      - { path: /usr/local/bin/node }
+
+# ── Process ────────────────────────────────────────────────────────────────
+process_policy:
+  block_privilege_escalation: true
+  block_new_user_namespaces: true
+  blocked_syscalls:
+    - ptrace
+    - kexec_load
+    - mount
+    - pivot_root

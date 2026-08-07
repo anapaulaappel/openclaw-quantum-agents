@@ -1,0 +1,93 @@
+# OpenShell Policy — quantum_encoding (QiskitAgent)
+#
+# Agente de uso geral para encoding quântico: acessa API Qiskit + LLM.
+# Policy intermediária — mais restrita que Quanta (sem acesso externo),
+# igual a Circuit em termos de rede, mas permite acesso CSV via /tmp.
+#
+# Aplique com:
+#   openshell policy set quantum-encoding --policy quantum-encoding.yaml --wait
+
+version: 1
+
+filesystem_policy:
+  include_workdir: true
+  read_only:
+    - /usr
+    - /lib
+    - /lib64
+    - /proc
+    - /dev/urandom
+    - /app
+    - /etc/ssl
+    - /etc/passwd
+  read_write:
+    - /sandbox
+    - /tmp             # uploads de CSV via /v1/compare/csv passam por aqui
+    - /dev/null
+
+landlock:
+  compatibility: best_effort
+
+network_policies:
+
+  qiskit_api:
+    name: qiskit-agents-api
+    endpoints:
+      - host: llama-qiskit-agents.openclaw.svc.cluster.local
+        port: 8080
+        protocol: rest
+        enforcement: enforce
+        allowed_methods: [GET, POST]
+        allowed_paths:
+          - /healthz
+          - /v1/recommend
+          - /v1/recommend/explain
+          - /v1/compare
+          - /v1/compare/csv
+          - /v1/circuit
+          - /v1/simulate
+          - /v1/tradeoffs
+          - /v1/scenarios-guide
+          - /v1/analyze
+          - /v1/analyze/text
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/local/bin/python3 }
+      - { path: /usr/local/bin/node }
+
+  llm_inference:
+    name: vllm-inference
+    endpoints:
+      - host: llama-32-3b-instruct-predictor.my-first-model.svc.cluster.local
+        port: 8080
+        protocol: rest
+        enforcement: enforce
+        allowed_methods: [POST]
+        allowed_paths:
+          - /v1/chat/completions
+          - /v1/completions
+          - /v1/models
+    binaries:
+      - { path: /usr/local/bin/python3 }
+      - { path: /usr/local/bin/node }
+
+  cluster_dns:
+    name: cluster-dns
+    endpoints:
+      - host: kube-dns.kube-system.svc.cluster.local
+        port: 53
+        protocol: udp
+        enforcement: enforce
+    binaries:
+      - { path: /usr/bin/curl }
+      - { path: /usr/local/bin/python3 }
+      - { path: /usr/local/bin/node }
+
+process_policy:
+  block_privilege_escalation: true
+  block_new_user_namespaces: true
+  blocked_syscalls:
+    - ptrace
+    - kexec_load
+    - mount
+    - pivot_root
