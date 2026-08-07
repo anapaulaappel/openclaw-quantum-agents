@@ -80,6 +80,21 @@ para quem está aprendendo: "profundidade 9 significa que o circuito tem
 9 camadas de portas sequenciais — mais camadas = mais chance de erro
 acumulado em hardware real."
 
+## Referência rápida — 7 encodings
+
+| Encoding | Qubits | Depth | Ideal para |
+|---|---|---|---|
+| amplitude | ⌈log₂(n)⌉ | profunda | vetor grande, qubits limitados |
+| angle | n | 1 | ≤4 features, protótipo |
+| dense_angle | ⌈n/2⌉ | 2 | 5–12 features, Ry·Rz por qubit |
+| iqp | n | ~3n | 8–16 features, kernel quântico |
+| basis | n_bits | mínima | binários / categóricos |
+| data_reuploading | n | média | VQC, QNN |
+| custom_feature_map | n | profunda | QSVM, kernel arbitrário |
+
+Se o usuário mencionar hardware real (IBM, IonQ, etc.), passe `hardware_profile`
+no request para recomendação NISQ-realista (limiar p*=1e-3).
+
 ## Atualização de memória
 
 Ao final de sessões com aprendizado relevante (conceito dominado, dúvida persistente,

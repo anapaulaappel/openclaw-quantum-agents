@@ -7,7 +7,9 @@ e ecossistema (julho/agosto 2026). Organizado por esforço e impacto.
 
 ## Tier 1 — Implementável agora (dias)
 
-### 1. Dois novos encodings: `dense_angle` e `IQP`
+> **Status:** ✓ dense_angle implementado (commit 39400af) | ✓ IQP implementado (commit aaf6dc0) | ✓ hardware_profile implementado (commit a3070b2)
+
+### 1. Dois novos encodings: `dense_angle` e `IQP` ✓ IMPLEMENTADO
 
 O survey mais completo da área (Sammartino, arXiv:2606.05387, ACM Computing Surveys 2026,
 66 papers revisados) classifica **6 famílias** de encoding — o projeto implementa 5.
@@ -35,7 +37,7 @@ Base teórica forte para kernels quânticos. Complementa `custom_feature_map`.
 
 ---
 
-### 2. Parâmetro `hardware_profile` na recomendação
+### 2. Parâmetro `hardware_profile` na recomendação ✓ IMPLEMENTADO
 
 A literatura estabelece um **limiar crítico de erro de porta**:
 > `p* ≈ 10⁻³` — acima disso, `amplitude` encoding degrada mais que encodings rasos.
@@ -61,7 +63,7 @@ Lógica em `refine_recommendation()`:
 
 ---
 
-### 3. Visualização de estado: esfera de Bloch na resposta
+### 3. Visualização de estado: esfera de Bloch na resposta — PRÓXIMO (B1)
 
 Depois de simular, capturar o statevector e gerar a visualização:
 

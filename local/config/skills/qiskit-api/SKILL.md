@@ -38,18 +38,33 @@ Recomendação completa: detecta idioma, retorna justificativa narrativa + códi
 }
 ```
 
-Todos os campos são opcionais — use os que o usuário forneceu.
+    Todos os campos são opcionais — use os que o usuário forneceu.
+    Para recomendação NISQ-realista, adicione `hardware_profile`:
 
-**Campos da resposta que importam:**
+    ```json
+    {
+      "data": [0.1, 0.2, 0.3],
+      "task": "kernel",
+      "hardware_profile": {
+        "gate_error_rate": 5e-3,
+        "connectivity": "heavy-hex",
+        "max_depth_budget": 20,
+        "backend_name": "ibm_eagle"
+      }
+    }
+    ```
 
-| Campo | O que é |
-|---|---|
-| `recommended_encoding` | Nome do encoding escolhido |
-| `explanation` | Justificativa em linguagem natural (já no idioma do usuário) |
-| `qiskit_code` | Código Python completo e copiável |
-| `circuit_depth` | Profundidade do circuito transpilado |
-| `circuit_qubits` | Número de qubits usados |
-| `lang` | Idioma detectado: `pt` ou `en` |
+    **Campos da resposta que importam:**
+
+    | Campo | O que é |
+    |---|---|
+    | `recommended_encoding` | Nome do encoding escolhido |
+    | `explanation` | Justificativa em linguagem natural (já no idioma do usuário) |
+    | `qiskit_code` | Código Python completo e copiável |
+    | `circuit_depth` | Profundidade do circuito transpilado |
+    | `circuit_qubits` | Número de qubits usados |
+    | `lang` | Idioma detectado: `pt` ou `en` |
+    | `hardware_constraints_applied` | `true` se hardware_profile influenciou a recomendação |
 
 **Apresentação:** mostre `explanation` diretamente, depois `qiskit_code` em bloco de código.
 

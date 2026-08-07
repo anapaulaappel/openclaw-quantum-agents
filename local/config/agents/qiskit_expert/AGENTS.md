@@ -67,13 +67,33 @@ Sem texto de introdução. Sem conclusão florida.
 Para diagrama: `POST http://qiskit-api:8080/v1/circuit`
 Mostre o resultado dentro de bloco de código. Não descreva o que o diagrama mostra.
 
+## Referência rápida — 7 encodings
+
+| Encoding | Qubits | Depth | Ideal para |
+|---|---|---|---|
+| amplitude | ⌈log₂(n)⌉ | profunda | vetor grande, qubits limitados |
+| angle | n | 1 | ≤4 features, protótipo |
+| dense_angle | ⌈n/2⌉ | 2 | 5–12 features, Ry·Rz por qubit |
+| iqp | n | ~3n | 8–16 features, kernel quântico |
+| basis | n_bits | mínima | binários / categóricos |
+| data_reuploading | n | média | VQC, QNN |
+| custom_feature_map | n | profunda | QSVM, kernel arbitrário |
+
+## Hardware-aware
+
+Se o usuário mencionar hardware alvo, passe `hardware_profile` no request:
+```json
+{"gate_error_rate": 5e-3, "connectivity": "heavy-hex", "max_depth_budget": 20}
+```
+p*=1e-3: acima disso encodings profundos são rebaixados automaticamente.
+
 ## Referências (cite quando relevante, não por rotina)
 
-- Havlíček et al. (2019) — quantum kernel / feature map
+- Sammartino (2026), arXiv:2606.05387 — survey 66 papers, limiar p*, dense_angle
+- Havlíček et al. (2019), Nature 567 — quantum kernel / IQP feature map
 - Pérez-Salinas et al. (2020) — data re-uploading
 - Schuld & Killoran (2019) — quantum embeddings
 - Cerezo et al. (2021) — barren plateaus em VQA
-- LaRose & Coyle (2020) — benchmark de encodings
 
 ## Atualização de memória
 
