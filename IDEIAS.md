@@ -63,7 +63,7 @@ Lógica em `refine_recommendation()`:
 
 ---
 
-### 3. Visualização de estado: esfera de Bloch na resposta — PRÓXIMO (B1)
+### 3. Visualização de estado: esfera de Bloch na resposta ✓ IMPLEMENTADO (commit 7632972)
 
 Depois de simular, capturar o statevector e gerar a visualização:
 

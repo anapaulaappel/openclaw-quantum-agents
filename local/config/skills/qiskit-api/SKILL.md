@@ -65,6 +65,14 @@ Recomendação completa: detecta idioma, retorna justificativa narrativa + códi
     | `circuit_qubits` | Número de qubits usados |
     | `lang` | Idioma detectado: `pt` ou `en` |
     | `hardware_constraints_applied` | `true` se hardware_profile influenciou a recomendação |
+    | `bloch_sphere_b64` | PNG base64 da esfera de Bloch (quando `include_bloch: true`) |
+    | `bloch_caption` | Legenda explicativa no idioma do usuário |
+
+    Para obter a visualização da esfera de Bloch, adicione `"include_bloch": true`:
+    ```json
+    {"data": [0.1, 0.2, 0.3], "include_bloch": true}
+    ```
+    Disponível para circuitos com ≤6 qubits. Retorna `null` para circuitos maiores.
 
 **Apresentação:** mostre `explanation` diretamente, depois `qiskit_code` em bloco de código.
 

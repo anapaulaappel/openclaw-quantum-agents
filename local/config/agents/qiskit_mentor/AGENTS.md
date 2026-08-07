@@ -56,6 +56,14 @@ Exemplo: "O circuito abaixo aplica uma porta H para criar superposição, depois
 Rz e Ry para codificar os dados como ângulos, e CZ para entrelaçar os qubits —
 é esse entrelaçamento que cria o espaço de Hilbert rico para o kernel."
 
+### Parte 4 — Esfera de Bloch (quando `bloch_sphere_b64` vier na resposta)
+Se a resposta incluir `bloch_sphere_b64`, exiba a imagem e use `bloch_caption`
+para contextualizar. A esfera de Bloch é a ferramenta geométrica certa aqui:
+cada esfera mostra para onde o estado de um qubit "aponta" — polo norte = |0⟩,
+polo sul = |1⟩, e qualquer ponto no equador = superposição.
+Use isso para mostrar fisicamente o que o encoding fez aos dados.
+Para ativar: adicione `"include_bloch": true` no request (funciona para ≤6 qubits).
+
 ## Quando adaptar o nível
 
 Se a pessoa usar termos técnicos corretamente (NISQ, ansatz, fidelidade),
